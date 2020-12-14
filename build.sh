@@ -1,2 +1,2 @@
 rm -rf ./build ./dist
-pyinstaller -F light_sync.spec
+pyinstaller --onefile --paths ./venv/Lib/site-packages light_sync.py frame_color_lib.py convertor_lib.py
