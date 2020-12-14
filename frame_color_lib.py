@@ -12,6 +12,7 @@ import math
 
 from convertor_lib import Converter
 
+
 # Frame Color Definition
 class FrameColor(object):
     """__init__() functions as the class constructor"""
@@ -40,7 +41,6 @@ class FrameColor(object):
                 bright_channels_count += 1
 
             if self.color[channel] < self.min_threshold:
-
                 dark_channels_count += 1
 
         if bright_channels_count == 3:
@@ -54,10 +54,11 @@ class FrameColor(object):
         return self.color_converter.rgb_to_xy(
             self.color[2], self.color[1], self.color[0])
 
+
 class FrameColorLib:
     def __init__(self):
         "init"
-        self.color_converter = Converter()  
+        self.color_converter = Converter()
 
     def shrink_image(self, input_img, input_image_reduced_size):
         "Reduce image size to increase computation speed"
@@ -68,11 +69,11 @@ class FrameColorLib:
         if max_height < height or max_witdh < width:
             # Get scaling factor
             scaling_factor = max_height / float(height)
-            if max_witdh/float(width) < scaling_factor:
+            if max_witdh / float(width) < scaling_factor:
                 scaling_factor = max_witdh / float(width)
             # Resize image. You can use INTER_AREA if you have a performant computer
             input_img = cv2.resize(input_img, None, fx=scaling_factor,
-                                fy=scaling_factor, interpolation=cv2.INTER_LINEAR)
+                                   fy=scaling_factor, interpolation=cv2.INTER_LINEAR)
         return input_img
 
     def apply_frame_mask(self, current_frame, channels_min_threshold):
@@ -84,11 +85,11 @@ class FrameColorLib:
         # Apply mask to frame
         masked_frame = cv2.bitwise_and(
             current_frame, current_frame, mask=mask)
-        
+
         return masked_frame
 
     def calculate_frame_brightness(self, frame, dim_brightness, starting_brightness,
-                                    min_non_zero_count, max_non_zero_count):
+                                   min_non_zero_count, max_non_zero_count):
         "Calculates frame brightness"
 
         # Actual non zero thresholds in pixels
@@ -106,30 +107,30 @@ class FrameColorLib:
                 current_brightness = starting_brightness
             else:
                 current_brightness = (nz_count - min_non_zero_count_pixels) * (
-                    starting_brightness - dim_brightness) / (
-                        max_non_zero_count_pixels - min_non_zero_count_pixels) + (
-                            dim_brightness)
+                        starting_brightness - dim_brightness) / (
+                                             max_non_zero_count_pixels - min_non_zero_count_pixels) + (
+                                         dim_brightness)
                 current_brightness = int(current_brightness)
-        
+
         return current_brightness
 
     def frame_colors_are_similar(self, first_color, second_color,
-                                    color_skip_sensitivity,
-                                    brightness_skip_sensitivity):
+                                 color_skip_sensitivity,
+                                 brightness_skip_sensitivity):
         "checks if 2 frame colors are similar"
         result = False
-        if first_color is not None and\
+        if first_color is not None and \
                 second_color is not None:
-                if(first_color.go_dark == True and second_color.go_dark == True):
-                    return True
+            if (first_color.go_dark == True and second_color.go_dark == True):
+                return True
 
-                if abs(first_color.brightness - second_color.brightness) < brightness_skip_sensitivity:
-                    for j in range(0, 3):
-                        ch_diff = math.fabs(
-                            int(first_color.color[j]) - int(second_color.color[j]))
-                        if ch_diff < color_skip_sensitivity:
-                            result = True
-                            break
+            if abs(first_color.brightness - second_color.brightness) < brightness_skip_sensitivity:
+                for j in range(0, 3):
+                    ch_diff = math.fabs(
+                        int(first_color.color[j]) - int(second_color.color[j]))
+                    if ch_diff < color_skip_sensitivity:
+                        result = True
+                        break
         return result
 
     def calculate_hue_color(self, input_img, k_means,
@@ -167,7 +168,7 @@ class FrameColorLib:
 
         for j in range(k_means):
             frame_color = FrameColor(center[j], j, label_counts[j],
-                                    channels_min_threshold, channels_max_threshold, self.color_converter)
+                                     channels_min_threshold, channels_max_threshold, self.color_converter)
             frame_colors.append(frame_color)
 
         # Sort by prevalence
@@ -192,5 +193,3 @@ class FrameColorLib:
                     break
 
         return result_color
-
-   
