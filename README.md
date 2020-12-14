@@ -1,7 +1,4 @@
-# light-sync: A Python script for Philips Hue
-Sync Philips Hue lights with computer screen in real time
-
-[![sample run](https://img.youtube.com/vi/GCckl4853TY/1.jpg)](https://www.youtube.com/watch?v=GCckl4853TY)
+# light-sync: A Python script for dominant color
 
 
 ## Prerequisites:
@@ -12,10 +9,6 @@ Sync Philips Hue lights with computer screen in real time
 - Requests: ```pip install requests```
 
 ## Usage:
-
-Make sure you set the ```MY_LIGHT_NAMES```/```MY_LIGHT_IDS``` and ```BRIDGE_IP``` variables to match your Hue System.
-
-**Press the Hue Bridge button before running the script for the first time!**
 
 Run the script in the terminal: 
 
@@ -33,12 +26,6 @@ python light_sync.py --screenpart right --lights Light2
 Feel free to tweak setup variables in order to obtain preferred effect.
 
 Enjoy!
-
-## Desktop app for Linux, Mac, Windows available:
-
-![light_sync_app](example/light_sync_app.jpg)
-
-https://github.com/digital-concrete/light-sync-electron
 
 ## How it works:
 
