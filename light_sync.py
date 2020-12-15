@@ -753,7 +753,8 @@ def main(argv):
                 prev_brightness = current_brightness
 
                 dict = {'r': result_color.color[0], 'g': result_color.color[1], 'b': result_color.color[2], 'brightness': current_brightness}
-                print(dict)
+                sys.stdout.write('{{"r": {0}, "g": {1}, "b": {2}, "brightness": {3}}}'.format(int(result_color.color[0]), int(result_color.color[1]), int(result_color.color[2]), int(current_brightness)))
+                sys.stdout.flush()
 
                 prev_fps = 1 / (time.time() - last_time)
 
