@@ -192,4 +192,4 @@ class FrameColorLib:
                     result_color = frame_colors[j]
                     break
 
-        return result_color
+        return result_color, frame_colors

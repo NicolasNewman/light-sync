@@ -32,9 +32,12 @@ import math
 import time
 import numpy
 import cv2
+import mss.windows
+mss.windows.CAPTUREBLT = 0
 import mss
 
 from frame_color_lib import FrameColorLib
+from preview import start_visualizer, update_visualizer_palette, update_visualizer_shrink, update_visualizer_mask
 
 # SETUP VARIABLES (tweak them for preffered effect)
 
@@ -149,6 +152,9 @@ ON_OFF_FLICKER_MIN_NON_ZERO_COUNT_CORRECTION_VALUE = 0.1
 # ON OFF FLICKER CORRECTION
 ON_OFF_FLICKER_MIN_THRESHOLD_FLICKER_CORRECTION_VALUE = 0.2
 
+# If true, generates graphs of the dominant color
+VISUALIZE = False
+
 # GLOBALS
 
 # Init convertor lib used to format color for HUE
@@ -162,7 +168,6 @@ def usage(parser):
     print("\t" + sys.argv[0] +
           " --bridgeip 192.168.1.23 --lights Light1,Light2")
     sys.exit()
-
 
 def main(argv):
     "main routine"
@@ -203,6 +208,9 @@ def main(argv):
     on_off_flicker_count_threshold = ON_OFF_FLIKCER_DETECTION_THRESHOLD
     min_non_zero_count_on_off_flicker_correction_value = ON_OFF_FLICKER_MIN_NON_ZERO_COUNT_CORRECTION_VALUE
     channels_min_threshold_on_off_flicker_correction_value = ON_OFF_FLICKER_MIN_THRESHOLD_FLICKER_CORRECTION_VALUE
+
+    # Debugging
+    visualize = VISUALIZE
 
     # Arguments or defaults
     parser = argparse.ArgumentParser(description="Sync Hue Lights with computer display")
@@ -255,6 +263,9 @@ def main(argv):
                         help="On/Off flicker min nz count correction (default 0.1)")
     parser.add_argument("-focm", "--onoffflickerchannelsmincorrection",
                         help="On/Off flicker channels min threshold correction (default 0.2)")
+
+    # Debugging
+    parser.add_argument("-vis", "--visualize", help="Generates graphs of the dominant color if true (default False)")
 
     args = parser.parse_args()
 
@@ -517,6 +528,20 @@ def main(argv):
         except ValueError:
             print("onoffflickerchannelsmincorrection must be a number\n")
             usage(parser)
+    if args.visualize:
+        try:
+            vis = str(args.visualize).upper()
+            if 'TRUE'.startswith(vis):
+                visualize = True
+                start_visualizer()
+            elif 'FALSE'.startswith(vis):
+                visualize = False
+            else:
+                raise ValueError("visualize must be a boolean\n")
+            print("Set if visualization charts are generated: " + str(visualize))
+        except ValueError:
+            print("visualize must be a boolean\n")
+            usage(parser)
 
     # args validation
     if dim_brightness >= starting_brightness:
@@ -602,7 +627,7 @@ def main(argv):
             img = numpy.array(sct.grab(monitor))
 
             # Shrink image for performance sake
-            current_frame = FRAME_COLOR_LIB.shrink_image(img, input_image_reduced_size)
+            shrink_frame = FRAME_COLOR_LIB.shrink_image(img, input_image_reduced_size)
 
             # init frame comparrison result
             comparison_result = None
@@ -610,14 +635,14 @@ def main(argv):
             # Compare Frame with Prev Frame
             # Skip if similar
             if prev_frame is not None:
-
                 comparison_result = cv2.matchTemplate(
-                    current_frame, prev_frame, 1)
+                    shrink_frame, prev_frame, 1)
                 if comparison_result[0][0] < frame_match_sensitivity:
                     continue
 
+            shrink_frame = cv2.cvtColor(shrink_frame, cv2.COLOR_BGRA2RGBA)
             # Apply dark color threshold and compute mask
-            masked_frame = FRAME_COLOR_LIB.apply_frame_mask(current_frame,
+            masked_frame = FRAME_COLOR_LIB.apply_frame_mask(shrink_frame,
                                                             channels_min_threshold * channels_min_threshold_flicker_correction)
 
             current_brightness = FRAME_COLOR_LIB.calculate_frame_brightness(masked_frame,
@@ -633,20 +658,19 @@ def main(argv):
                     go_dark = False
 
             # Calculate relevant color for this frame
-            result_color = FRAME_COLOR_LIB.calculate_hue_color(
+            result_color, frame_color = FRAME_COLOR_LIB.calculate_hue_color(
                 masked_frame, (number_of_k_means_clusters - k_means_flicker_correction), color_spread_threshold,
                 channels_min_threshold * channels_min_threshold_flicker_correction, channels_max_threshold)
 
             # save brightness, go_dark and diff from prev frame for later use
             result_color.brightness = current_brightness
             result_color.go_dark = go_dark
-            if (comparison_result is not None):
+            if comparison_result is not None:
                 result_color.diff_from_prev = comparison_result[0][0]
 
             # Compare Current Calculated Color with previous Color
             # Skip frame if result color is almost identical
-            if prev_color is not None and \
-                    abs(current_brightness - prev_brightness) < brightness_skip_sensitivity:
+            if prev_color is not None and abs(current_brightness - prev_brightness) < brightness_skip_sensitivity:
                 skip_frame = True
                 for j in range(0, 3):
                     ch_diff = math.fabs(
@@ -657,20 +681,33 @@ def main(argv):
                 if skip_frame:
                     continue
 
+            if visualize:
+                bars = []
+                for frame in frame_color[:5]:
+                    bar = numpy.zeros((100, 100, 3), numpy.uint8)
+                    bar[:] = frame.color[:3]
+                    bars.append(bar)
+                    update_visualizer_palette(numpy.hstack(bars))
+                    update_visualizer_shrink(shrink_frame)
+                    update_visualizer_mask(masked_frame)
+                    # cv2.imwrite('src.jpg', img)
+                    # cv2.imwrite('shrink.jpg', shrink_frame)
+                    # cv2.imwrite('mask.jpg', masked_frame)
+
             # Anti Flicker algorithm 
             # BETA VERSION
-            if (flicker_prevent):
+            if flicker_prevent:
                 result_buffer.append(result_color)
                 current_buffer_size = len(result_buffer)
 
                 # reset flicker temporary adjustments if any
-                if (result_color.diff_from_prev is not None and \
+                if (result_color.diff_from_prev is not None and
                         result_color.diff_from_prev > flicker_correction_reset_sensitivity):
-                    if (k_means_flicker_correction != 0):
+                    if k_means_flicker_correction != 0:
                         color_flicker_countdown = 0
                         k_means_flicker_correction = 0
                         # print('reset color FLICKER adjustments')
-                    if (min_non_zero_count_flicker_correction != 1):
+                    if min_non_zero_count_flicker_correction != 1:
                         on_off_flicker_countdown = 0
                         min_non_zero_count_flicker_correction = 1
                         channels_min_threshold_flicker_correction = 1
@@ -679,9 +716,9 @@ def main(argv):
                     color_flicker_count = 0
                     current_buffer_size = len(result_buffer)
                     if current_buffer_size >= color_flicker_prevent_required_input_frames_count:
-                        for j in range(current_buffer_size - (color_flicker_prevent_required_input_frames_count), \
+                        for j in range(current_buffer_size - color_flicker_prevent_required_input_frames_count,
                                        current_buffer_size - 1):
-                            color_check = FRAME_COLOR_LIB.frame_colors_are_similar( \
+                            color_check = FRAME_COLOR_LIB.frame_colors_are_similar(
                                 result_buffer[j], result_buffer[j - 1],
                                 color_skip_sensitivity, brightness_skip_sensitivity)
                             if result_buffer[j].diff_from_prev is not None and \
@@ -702,7 +739,7 @@ def main(argv):
                         current_buffer_size = len(result_buffer)
                         if current_buffer_size >= on_off_flicker_prevent_required_input_frames_count:
                             for j in range(
-                                    current_buffer_size - (on_off_flicker_prevent_required_input_frames_count + 1), \
+                                    current_buffer_size - (on_off_flicker_prevent_required_input_frames_count + 1),
                                     current_buffer_size - 1):
                                 if not result_buffer[j].go_dark and result_buffer[j + 1].go_dark:
                                     on_off_count += 1
@@ -734,77 +771,75 @@ def main(argv):
 
                     # print('RESULT_BUFFER count: {0}'.format(len(RESULT_BUFFER)))
 
-            # Send color to Hue if update flag is clear
-            if True:
-                # Use prev color if RGB are all 0
-                # Avoids unpleasant blue shift
-                if result_color.color[0] == 0 and result_color.color[1] == 0 \
-                        and result_color.color[2] == 0:
-                    if prev_color:
-                        result_color = prev_color
-                    else:
-                        result_color.color[0] = DEFAULT_DARK_COLOR[0]
-                        result_color.color[1] = DEFAULT_DARK_COLOR[1]
-                        result_color.color[2] = DEFAULT_DARK_COLOR[2]
+            # Use prev color if RGB are all 0
+            # Avoids unpleasant blue shift
+            if result_color.color[0] == 0 and result_color.color[1] == 0 \
+                    and result_color.color[2] == 0:
+                if prev_color:
+                    result_color = prev_color
                 else:
-                    prev_color = result_color
+                    result_color.color[0] = DEFAULT_DARK_COLOR[0]
+                    result_color.color[1] = DEFAULT_DARK_COLOR[1]
+                    result_color.color[2] = DEFAULT_DARK_COLOR[2]
+            else:
+                prev_color = result_color
 
-                prev_frame = current_frame
-                prev_brightness = current_brightness
+            prev_frame = shrink_frame
+            prev_brightness = current_brightness
 
-                dict = {'r': result_color.color[0], 'g': result_color.color[1], 'b': result_color.color[2], 'brightness': current_brightness}
-                sys.stdout.write('{{"r": {0}, "g": {1}, "b": {2}, "brightness": {3}}}'.format(int(result_color.color[0]), int(result_color.color[1]), int(result_color.color[2]), int(current_brightness)))
-                sys.stdout.flush()
+            dict = {'r': result_color.color[0], 'g': result_color.color[1], 'b': result_color.color[2], 'brightness': current_brightness}
+            sys.stdout.write('{{"r": {0}, "g": {1}, "b": {2}, "brightness": {3}}}\n'.format(int(result_color.color[0]), int(result_color.color[1]), int(result_color.color[2]), int(current_brightness)))
+            sys.stdout.flush()
 
-                prev_fps = 1 / (time.time() - last_time)
+            prev_fps = 1 / (time.time() - last_time)
 
-                # BETA VERSION !!!
-                # If bad FPS
-                # Adjust params to achieve smooth performance 
-                if (auto_adjust_performance
-                        and prev_fps
-                        and prev_fps < hue_max_requests_per_second):
-                    # Skip random bad fps frames
-                    if (adjust_counter == adjust_counter_limit - 1):
-                        if adjust_position % 6 < 3 and input_image_reduced_size >= 30:
-                            # print("adjust shrink image size")
-                            input_image_reduced_size -= 10
-                        elif adjust_position % 6 < 3:
-                            # increment if there is nothing to do here
-                            adjust_position = 3
+            # BETA VERSION !!!
+            # If bad FPS
+            # Adjust params to achieve smooth performance
+            if (auto_adjust_performance
+                    and prev_fps
+                    and prev_fps < hue_max_requests_per_second):
+                # Skip random bad fps frames
+                if adjust_counter == adjust_counter_limit - 1:
+                    if adjust_position % 6 < 3 and input_image_reduced_size >= 30:
+                        # print("adjust shrink image size")
+                        input_image_reduced_size -= 10
+                    elif adjust_position % 6 < 3:
+                        # increment if there is nothing to do here
+                        adjust_position = 3
 
-                        if adjust_position % 6 == 3 and number_of_k_means_clusters > 4:
-                            # print("adjust k means")
-                            number_of_k_means_clusters -= 1
-                        elif adjust_position % 6 == 3:
-                            # increment if there is nothing to do here
-                            adjust_position += 1
-
-                        if adjust_position % 6 == 4 and channels_min_threshold < 90:
-                            # print("adjust channels_min_threshold")
-                            channels_min_threshold += 5
-                        elif adjust_position % 6 == 4:
-                            # increment if there is nothing to do here
-                            adjust_position += 1
-
-                        if adjust_position % 6 == 5 and frame_match_sensitivity < 0.1:
-                            # print("adjust match sensitivity")
-                            frame_match_sensitivity += 0.001
-                        elif adjust_position % 6 == 5:
-                            # increment if there is nothing to do here
-                            adjust_position += 1
-
+                    if adjust_position % 6 == 3 and number_of_k_means_clusters > 4:
+                        # print("adjust k means")
+                        number_of_k_means_clusters -= 1
+                    elif adjust_position % 6 == 3:
+                        # increment if there is nothing to do here
                         adjust_position += 1
-                        adjust_counter = 0
-                        # print("adjusted params to meet performance")
-                        # print('input_image_reduced_size: {0}'.format(input_image_reduced_size))
-                        # print('channels_min_threshold: {0}'.format(channels_min_threshold))
-                        # print('number_of_k_means_clusters: {0}'.format(number_of_k_means_clusters))
-                        # print('frame_match_sensitivity: {0}'.format(frame_match_sensitivity))
-                    else:
-                        adjust_counter += 1
-                else:
+
+                    if adjust_position % 6 == 4 and channels_min_threshold < 90:
+                        # print("adjust channels_min_threshold")
+                        channels_min_threshold += 5
+                    elif adjust_position % 6 == 4:
+                        # increment if there is nothing to do here
+                        adjust_position += 1
+
+                    if adjust_position % 6 == 5 and frame_match_sensitivity < 0.1:
+                        # print("adjust match sensitivity")
+                        frame_match_sensitivity += 0.001
+                    elif adjust_position % 6 == 5:
+                        # increment if there is nothing to do here
+                        adjust_position += 1
+
+                    adjust_position += 1
                     adjust_counter = 0
+                    # print("adjusted params to meet performance")
+                    # print('input_image_reduced_size: {0}'.format(input_image_reduced_size))
+                    # print('channels_min_threshold: {0}'.format(channels_min_threshold))
+                    # print('number_of_k_means_clusters: {0}'.format(number_of_k_means_clusters))
+                    # print('frame_match_sensitivity: {0}'.format(frame_match_sensitivity))
+                else:
+                    adjust_counter += 1
+            else:
+                adjust_counter = 0
 
 
 if __name__ == "__main__":
