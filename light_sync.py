@@ -37,7 +37,7 @@ mss.windows.CAPTUREBLT = 0
 import mss
 
 from frame_color_lib import FrameColorLib
-from preview import start_visualizer, update_visualizer_palette, update_visualizer_shrink, update_visualizer_mask
+from visualizer import start_visualizer, update_visualizer_palette, update_visualizer_shrink, update_visualizer_mask
 
 # SETUP VARIABLES (tweak them for preffered effect)
 
