@@ -681,19 +681,6 @@ def main(argv):
                 if skip_frame:
                     continue
 
-            if visualize:
-                bars = []
-                for frame in frame_color[:5]:
-                    bar = numpy.zeros((100, 100, 3), numpy.uint8)
-                    bar[:] = frame.color[:3]
-                    bars.append(bar)
-                    update_visualizer_palette(numpy.hstack(bars))
-                    update_visualizer_shrink(shrink_frame)
-                    update_visualizer_mask(masked_frame)
-                    # cv2.imwrite('src.jpg', img)
-                    # cv2.imwrite('shrink.jpg', shrink_frame)
-                    # cv2.imwrite('mask.jpg', masked_frame)
-
             # Anti Flicker algorithm 
             # BETA VERSION
             if flicker_prevent:
@@ -786,6 +773,28 @@ def main(argv):
 
             prev_frame = shrink_frame
             prev_brightness = current_brightness
+
+            if visualize:
+                bars = []
+                for frame in frame_color[:5]:
+                    bar = numpy.zeros((105, 100, 3), numpy.uint8)
+                    print(len(bar))
+                    print(len(bar[0]))
+                    bar[:] = frame.color[:3]
+                    print(frame.color)
+                    print(result_color.color)
+                    if all(frame.color == result_color.color):
+                        bar[:5] = (0, 255, 0)
+                    else:
+                        bar[:5] = (255, 0, 0)
+                    bars.append(bar)
+
+                update_visualizer_palette(numpy.hstack(bars))
+                update_visualizer_shrink(shrink_frame)
+                update_visualizer_mask(masked_frame)
+                # cv2.imwrite('src.jpg', img)
+                # cv2.imwrite('shrink.jpg', shrink_frame)
+                # cv2.imwrite('mask.jpg', masked_frame)
 
             dict = {'r': result_color.color[0], 'g': result_color.color[1], 'b': result_color.color[2], 'brightness': current_brightness}
             sys.stdout.write('{{"r": {0}, "g": {1}, "b": {2}, "brightness": {3}}}\n'.format(int(result_color.color[0]), int(result_color.color[1]), int(result_color.color[2]), int(current_brightness)))
