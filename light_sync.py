@@ -778,11 +778,7 @@ def main(argv):
                 bars = []
                 for frame in frame_color[:5]:
                     bar = numpy.zeros((105, 100, 3), numpy.uint8)
-                    print(len(bar))
-                    print(len(bar[0]))
                     bar[:] = frame.color[:3]
-                    print(frame.color)
-                    print(result_color.color)
                     if all(frame.color == result_color.color):
                         bar[:5] = (0, 255, 0)
                     else:
