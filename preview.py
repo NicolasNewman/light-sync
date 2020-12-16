@@ -29,7 +29,7 @@ class Visualizer(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(Visualizer, self).__init__(*args, **kwargs)
 
-        self.setWindowTitle("My Awesome App")
+        self.setWindowTitle("Visualizer")
         self.resize(self.width, self.height + self.height / 2)
         self.setMinimumSize(QSize(self.width, self.height + self.height / 2))
         self.setMaximumSize(QSize(self.width, self.height + self.height / 2))
