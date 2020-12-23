@@ -5,3 +5,4 @@
 .dist
 *.jpg
 *.spec
+*.env

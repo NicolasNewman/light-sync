@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+numpy = "~=1.19.4"
+opencv-python = "~=4.4.0.46"
+mss = "~=6.1.0"
+PyQt5 = "~=5.15.2"
+pyinstaller = "~=4.1"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"
+
+[scripts]
+build = "pyenv run pyinstaller --onefile --paths $PATH light_sync.py frame_color_lib.py convertor_lib.py visualizer.py"
