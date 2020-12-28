@@ -13,7 +13,10 @@ pyinstaller = "~=4.1"
 [dev-packages]
 
 [requires]
-python_version = "3.9"
+python_version = "3.8"
 
 [scripts]
 build = "pyinstaller --onefile --paths $PATH light_sync.py frame_color_lib.py convertor_lib.py visualizer.py"
+start = "python light_sync.py"
+vis = "python light_sync.py -vis true"
+print = "python light_sync.py --screens true"
