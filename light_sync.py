@@ -60,7 +60,7 @@ DEFAULT_DARK_COLOR = [64, 75, 78]
 # Skip frame if brightness difference is less than this
 BRIGHTNESS_SKIP_SENSITIVITY = 10
 
-# Transition type: 
+# Transition type:
 # 0 = instant
 # 1 = instant if frame diff is over threshold and smooth if frames are similar
 # 2 = smooth
@@ -77,7 +77,7 @@ FRAME_MATCH_SENSITIVITY = 0.008
 
 # BETA version!!!
 # Use to transition smoothly when frames are less than this value and
-# greater than FRAME_MATCH_SENSITIVITY 
+# greater than FRAME_MATCH_SENSITIVITY
 FRAME_MATCH_SMOOTH_TRANSITION_SENSITIVITY = 0.1
 
 # Resulted colors from previous and current frame are compared channel by channel
@@ -154,6 +154,8 @@ ON_OFF_FLICKER_MIN_THRESHOLD_FLICKER_CORRECTION_VALUE = 0.2
 
 # If true, generates graphs of the dominant color
 VISUALIZE = False
+MONITORS = False
+MONITOR_ID = 1
 
 # GLOBALS
 
@@ -211,6 +213,8 @@ def main(argv):
 
     # Debugging
     visualize = VISUALIZE
+    monitors = MONITORS
+    monitor_id = MONITOR_ID
 
     # Arguments or defaults
     parser = argparse.ArgumentParser(description="Sync Hue Lights with computer display")
@@ -266,6 +270,8 @@ def main(argv):
 
     # Debugging
     parser.add_argument("-vis", "--visualize", help="Generates graphs of the dominant color if true (default False)")
+    parser.add_argument("-mon", "--monitor", help="Index of the monitor to use for processing (default 1)")
+    parser.add_argument("-sm", "--screens", help="Prints available screens to use for processing (default False)")
 
     args = parser.parse_args()
 
@@ -542,7 +548,26 @@ def main(argv):
         except ValueError:
             print("visualize must be a boolean\n")
             usage(parser)
-
+    if args.monitor:
+        try:
+            monitor_id = int(args.monitor)
+            print("Set index of monitor to use: " + str(visualize))
+        except ValueError:
+            print("monitor must be an index\n")
+            usage(parser)
+    if args.screens:
+        try:
+            monitors = str(args.screens).upper()
+            if 'TRUE'.startswith(monitors):
+                monitors = True
+            elif 'FALSE'.startswith(vis):
+                monitors = False
+            else:
+                raise ValueError("screens must be a boolean\n")
+            print("Set if availabled screens are displayed: " + str(visualize))
+        except ValueError:
+            print("screens must be a boolean\n")
+            usage(parser)
     # args validation
     if dim_brightness >= starting_brightness:
         print('dimbrightness must be smaller than maxbrightness')
@@ -600,8 +625,16 @@ def main(argv):
     global CAN_UPDATE_HUE
 
     with mss.mss() as sct:
+        # additional arg validation
+        if len(sct.monitors) < monitor_id:
+            print("monitor must be smaller then the number of available screens. Use -screens true to see options")
+            usage(parser)
+        if monitors:
+            print("[" + " ".join("\n\t{0}: {1},".format(i, x) for i, x in enumerate(sct.monitors)) + "\n]")
+            exit(1)
+
         # Part of the screen to capture (use if you want to create a multiple color effect)
-        full_mon = sct.monitors[1]
+        full_mon = sct.monitors[monitor_id]
         monitor = full_mon
 
         if screen_part_to_capture == "full":
@@ -681,7 +714,7 @@ def main(argv):
                 if skip_frame:
                     continue
 
-            # Anti Flicker algorithm 
+            # Anti Flicker algorithm
             # BETA VERSION
             if flicker_prevent:
                 result_buffer.append(result_color)
