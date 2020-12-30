@@ -631,7 +631,7 @@ def main(argv):
             usage(parser)
         if monitors:
             print("[" + " ".join("\n\t{0}: {1},".format(i, x) for i, x in enumerate(sct.monitors)) + "\n]")
-            exit(1)
+            sys.exit(1)
 
         # Part of the screen to capture (use if you want to create a multiple color effect)
         full_mon = sct.monitors[monitor_id]
